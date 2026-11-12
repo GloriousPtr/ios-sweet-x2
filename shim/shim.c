@@ -11,6 +11,9 @@
 #include "mmu.h"
 #include "loader.h"
 #include "ufs.h"
+#ifdef BOARD_X2
+#include "dpu.h"
+#endif
 
 #define IMEM_RESTART_REASON	0x146aa65cUL	/* qcom,msm-imem restart_reason@65c */
 #define RESTART_BOOTLOADER	0x77665500U
@@ -373,6 +376,17 @@ static uint32_t to_us(uint64_t ticks)
 void shim_main(uint64_t dtb)
 {
 	struct mmu_info mi;
+
+#ifdef X2_HANG
+	for (;;)
+		__asm__ volatile("wfe");
+#endif
+
+#ifdef BOARD_X2
+	int g = x2_display_init();
+	if (g)
+		reset(20 + 10 * g);
+#endif
 
 	/* An xnu payload in the ramdisk means: boot it (MMU stays off). */
 	stage = "loader";

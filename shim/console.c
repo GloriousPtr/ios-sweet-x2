@@ -4,11 +4,27 @@
  */
 #include "console.h"
 #include "font.h"
+#ifdef BOARD_X2
+#include "dpu.h"
+#define PRESENT()	dpu_kick_auto()
+#else
+#define PRESENT()	((void)0)
+#endif
 
+#ifdef BOARD_X2
+#define SCALE		2
+#else
 #define SCALE		3
+#endif
 #define CH_W		(8 * SCALE)
 #define CH_H		(16 * SCALE)
-#define MARGIN		24
+#ifdef BOARD_X2
+#define MARGIN_X	40	/* rounded corners */
+#define MARGIN_Y	120	/* notch / status bar */
+#else
+#define MARGIN_X	24
+#define MARGIN_Y	24
+#endif
 #define LABEL_COLS	8
 
 volatile uint32_t *con_fb = (volatile uint32_t *)FB_BASE;
@@ -24,6 +40,7 @@ void con_clear(uint32_t bg)
 	}
 	con_bg = bg;
 	row = 0;
+	PRESENT();
 }
 
 static void put_char(int col, char ch, uint32_t fg)
@@ -31,7 +48,7 @@ static void put_char(int col, char ch, uint32_t fg)
 	if (ch < 0x20 || ch > 0x7e)
 		ch = '?';
 	const unsigned char *g = font8x16[ch - 0x20];
-	int x0 = MARGIN + col * CH_W, y0 = MARGIN + row * CH_H;
+	int x0 = MARGIN_X + col * CH_W, y0 = MARGIN_Y + row * CH_H;
 	if (x0 + CH_W > FB_W || y0 + CH_H > FB_H)
 		return;
 	for (int gy = 0; gy < 16; gy++)
@@ -71,6 +88,7 @@ void con_str(const char *label, const char *s)
 	put_str(0, label, YELLOW);
 	put_str(LABEL_COLS, s, WHITE);
 	row++;
+	PRESENT();
 }
 
 void con_hex(const char *label, uint64_t v)
@@ -94,4 +112,5 @@ void con_hex2(const char *label, const char *a, uint32_t va, const char *b, uint
 		put_str(col, buf, WHITE);
 	}
 	row++;
+	PRESENT();
 }
