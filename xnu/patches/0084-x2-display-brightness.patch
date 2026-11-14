@@ -73,8 +73,8 @@ index 02cfbab..92be276 100644
 +		return;
 +	}
 +	/* Samsung AMS641RW16: MIPI DCS 0x51 long write, 1..2047 (0x7ff), big-endian. */
-+	fDsiCmdVirt = 0x01000039u | (3u << 8);
-+	fDsiCmdVirt = 0x00000051u | (((hw >> 8) & 0x7u) << 8) | ((hw & 0xffu) << 16);
++	fDsiCmdVirt[0] = 0x01000039u | (3u << 8);
++	fDsiCmdVirt[1] = 0x00000051u | (((hw >> 8) & 0x7u) << 8) | ((hw & 0xffu) << 16);
 +	flush_dcache((vm_offset_t)fDsiCmdVirt, 64, false);
 +	__asm__ volatile("dsb sy" ::: "memory");
 +
