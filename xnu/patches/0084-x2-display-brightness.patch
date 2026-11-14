@@ -1,16 +1,17 @@
 diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
-index 02cfbab..92be276 100644
+index 02cfbab..33571b4 100644
 --- a/iokit/Kernel/arm/SweetFramebuffer.cpp
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
-@@ -41,6 +41,7 @@
+@@ -41,6 +41,8 @@
  #include <IOKit/IOUserClient.h>
  #include <IOKit/IOKitKeys.h>
  #include <IOKit/IOLib.h>
 +#include <IOKit/IOBufferMemoryDescriptor.h>
++#include <machine/machine_routines.h>
  #include <IOKit/IOLocks.h>
  #include <IOKit/IOWorkLoop.h>
  #include <IOKit/IOTimerEventSource.h>
-@@ -79,6 +80,7 @@
+@@ -79,6 +81,7 @@ enum {
  #define SWEET_FB_LOGICAL_W              1125
  #define SWEET_FB_LOGICAL_H              2436
  #define SWEET_FB_FORMAT_BGRA            0x42475241
@@ -18,13 +19,12 @@ index 02cfbab..92be276 100644
  
  class IOMobileFramebuffer : public IOService {
  	OSDeclareDefaultStructors(IOMobileFramebuffer);
-@@ -115,13 +117,76 @@
+@@ -115,13 +118,75 @@ public:
  	bool          fPowerOff;      /* RequestPowerChange(0) */
  	uint32_t      fFadeStep;      /* fade-out steps done while off */
  
 +	int           fX2;
 +	uint32_t      fBrightness;
-+	IOMemoryMap  *fDsiMap;
 +	volatile uint32_t *fDsiRegs;
 +	IOBufferMemoryDescriptor *fDsiCmdBuf;
 +	uint64_t      fDsiCmdPhys;
@@ -95,7 +95,7 @@ index 02cfbab..92be276 100644
  OSDefineMetaClassAndStructors(AppleCLCD, IOMobileFramebuffer);
  
  class IOMobileFramebufferUserClient : public IOUserClient {
-@@ -195,6 +265,11 @@
+@@ -195,6 +260,11 @@ AppleCLCD::start(IOService *provider)
  	fFlushTicks = (hz == 0 || hz >= 60) ? 1 : 60 / hz;
  	fVsync->setTimeoutUS(SWEET_FB_VSYNC_US);
  
