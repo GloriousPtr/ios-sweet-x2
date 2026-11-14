@@ -1,5 +1,5 @@
 diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
-index 02cfbab..44a1ae2 100644
+index 02cfbab..19d571a 100644
 --- a/iokit/Kernel/arm/SweetFramebuffer.cpp
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
 @@ -41,6 +41,8 @@
@@ -11,21 +11,23 @@ index 02cfbab..44a1ae2 100644
  #include <IOKit/IOLocks.h>
  #include <IOKit/IOWorkLoop.h>
  #include <IOKit/IOTimerEventSource.h>
-@@ -79,6 +81,7 @@ enum {
+@@ -79,6 +81,8 @@ enum {
  #define SWEET_FB_LOGICAL_W              1125
  #define SWEET_FB_LOGICAL_H              2436
  #define SWEET_FB_FORMAT_BGRA            0x42475241
 +#define SWEET_X2_DSI0_PHYS              0x0ae94000ULL
++#define SWEET_X2_DISPCC_PHYS            0x0af00000ULL
  
  class IOMobileFramebuffer : public IOService {
  	OSDeclareDefaultStructors(IOMobileFramebuffer);
-@@ -115,13 +118,75 @@ public:
+@@ -115,13 +119,95 @@ public:
  	bool          fPowerOff;      /* RequestPowerChange(0) */
  	uint32_t      fFadeStep;      /* fade-out steps done while off */
  
 +	int           fX2;
 +	uint32_t      fBrightness;
 +	volatile uint32_t *fDsiRegs;
++	volatile uint32_t *fDispCc;
 +	IOBufferMemoryDescriptor *fDsiCmdBuf;
 +	uint64_t      fDsiCmdPhys;
 +	uint32_t     *fDsiCmdVirt;
@@ -49,6 +51,25 @@ index 02cfbab..44a1ae2 100644
 +	}
 +	fBrightness = hw;
 +	if (!fX2) {
++		return;
++	}
++	if (fDispCc == NULL) {
++		vm_offset_t cc = ml_io_map(SWEET_X2_DISPCC_PHYS, 0x4000);
++		if (cc != 0) {
++			fDispCc = (volatile uint32_t *)cc;
++		}
++	}
++	if (fDispCc == NULL) {
++		IOLog("SWEET FB: X2 DISPCC map failed\n");
++		return;
++	}
++	uint32_t gdsc = *(fDispCc + (0x3000 / 4));
++	uint32_t ahb  = *(fDispCc + (0x2080 / 4));
++	uint32_t byt  = *(fDispCc + (0x2028 / 4));
++	uint32_t bif  = *(fDispCc + (0x202c / 4));
++	IOLog("SWEET FB: X2 gates gdsc=0x%x ahb=0x%x byt=0x%x bif=0x%x\n", gdsc, ahb, byt, bif);
++	if (!(gdsc & (1u << 31)) || (ahb & (1u << 31)) || (byt & (1u << 31))) {
++		IOLog("SWEET FB: X2 DSI0 clock/power gated; skipping DCS 0x51\n");
 +		return;
 +	}
 +	if (fDsiRegs == NULL) {
@@ -95,7 +116,7 @@ index 02cfbab..44a1ae2 100644
  OSDefineMetaClassAndStructors(AppleCLCD, IOMobileFramebuffer);
  
  class IOMobileFramebufferUserClient : public IOUserClient {
-@@ -195,6 +260,11 @@ AppleCLCD::start(IOService *provider)
+@@ -195,6 +281,11 @@ AppleCLCD::start(IOService *provider)
  	fFlushTicks = (hz == 0 || hz >= 60) ? 1 : 60 / hz;
  	fVsync->setTimeoutUS(SWEET_FB_VSYNC_US);
  
