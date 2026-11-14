@@ -10,7 +10,7 @@ index 02cfbab..92be276 100644
  #include <IOKit/IOLocks.h>
  #include <IOKit/IOWorkLoop.h>
  #include <IOKit/IOTimerEventSource.h>
-@@ -79,6 +80,7 @@ enum {
+@@ -79,6 +80,7 @@
  #define SWEET_FB_LOGICAL_W              1125
  #define SWEET_FB_LOGICAL_H              2436
  #define SWEET_FB_FORMAT_BGRA            0x42475241
@@ -18,7 +18,7 @@ index 02cfbab..92be276 100644
  
  class IOMobileFramebuffer : public IOService {
  	OSDeclareDefaultStructors(IOMobileFramebuffer);
-@@ -115,13 +117,81 @@ public:
+@@ -115,13 +117,76 @@
  	bool          fPowerOff;      /* RequestPowerChange(0) */
  	uint32_t      fFadeStep;      /* fade-out steps done while off */
  
@@ -52,14 +52,9 @@ index 02cfbab..92be276 100644
 +		return;
 +	}
 +	if (fDsiRegs == NULL) {
-+		IOMemoryDescriptor *md = IOMemoryDescriptor::withAddressRange(
-+		    SWEET_X2_DSI0_PHYS, 0x400, kIODirectionInOut | kIOMemoryMapperNone, kernel_task);
-+		if (md != NULL) {
-+			fDsiMap = md->map();
-+			md->release();
-+			if (fDsiMap != NULL) {
-+				fDsiRegs = (volatile uint32_t *)fDsiMap->getVirtualAddress();
-+			}
++		vm_offset_t va = ml_io_map(SWEET_X2_DSI0_PHYS, 0x400);
++		if (va != 0) {
++			fDsiRegs = (volatile uint32_t *)va;
 +		}
 +		fDsiCmdBuf = IOBufferMemoryDescriptor::inTaskWithPhysicalMask(
 +		    kernel_task, kIODirectionOut, 4096, 0xFFFFFFFFULL);
@@ -100,7 +95,7 @@ index 02cfbab..92be276 100644
  OSDefineMetaClassAndStructors(AppleCLCD, IOMobileFramebuffer);
  
  class IOMobileFramebufferUserClient : public IOUserClient {
-@@ -195,6 +265,11 @@ AppleCLCD::start(IOService *provider)
+@@ -195,6 +265,11 @@
  	fFlushTicks = (hz == 0 || hz >= 60) ? 1 : 60 / hz;
  	fVsync->setTimeoutUS(SWEET_FB_VSYNC_US);
  
