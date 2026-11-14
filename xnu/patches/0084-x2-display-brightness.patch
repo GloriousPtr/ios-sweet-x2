@@ -1,5 +1,5 @@
 diff --git a/iokit/Kernel/arm/SweetFramebuffer.cpp b/iokit/Kernel/arm/SweetFramebuffer.cpp
-index 02cfbab..33571b4 100644
+index 02cfbab..44a1ae2 100644
 --- a/iokit/Kernel/arm/SweetFramebuffer.cpp
 +++ b/iokit/Kernel/arm/SweetFramebuffer.cpp
 @@ -41,6 +41,8 @@
@@ -7,7 +7,7 @@ index 02cfbab..33571b4 100644
  #include <IOKit/IOKitKeys.h>
  #include <IOKit/IOLib.h>
 +#include <IOKit/IOBufferMemoryDescriptor.h>
-+#include <machine/machine_routines.h>
++extern "C" vm_offset_t ml_io_map(vm_offset_t phys_addr, vm_size_t size);
  #include <IOKit/IOLocks.h>
  #include <IOKit/IOWorkLoop.h>
  #include <IOKit/IOTimerEventSource.h>
@@ -68,28 +68,28 @@ index 02cfbab..33571b4 100644
 +		return;
 +	}
 +	/* Samsung AMS641RW16: MIPI DCS 0x51 long write, 1..2047 (0x7ff), big-endian. */
-+	fDsiCmdVirt[0] = 0x01000039u | (3u << 8);
-+	fDsiCmdVirt[1] = 0x00000051u | (((hw >> 8) & 0x7u) << 8) | ((hw & 0xffu) << 16);
++	*(fDsiCmdVirt + 0) = 0x01000039u | (3u << 8);
++	*(fDsiCmdVirt + 1) = 0x00000051u | (((hw >> 8) & 0x7u) << 8) | ((hw & 0xffu) << 16);
 +	flush_dcache((vm_offset_t)fDsiCmdVirt, 64, false);
 +	__asm__ volatile("dsb sy" ::: "memory");
 +
-+	uint32_t int_ctrl = fDsiRegs[0x110 / 4];
-+	fDsiRegs[0x110 / 4] = int_ctrl | (1u << 24);
-+	fDsiRegs[0x048 / 4] = (uint32_t)fDsiCmdPhys;   /* DSI_DMA_CMD_OFFSET */
-+	fDsiRegs[0x04c / 4] = 8u;                      /* DSI_DMA_CMD_LENGTH */
++	uint32_t int_ctrl = *(fDsiRegs + (0x110 / 4));
++	*(fDsiRegs + (0x110 / 4)) = int_ctrl | (1u << 24);
++	*(fDsiRegs + (0x048 / 4)) = (uint32_t)fDsiCmdPhys;   /* DSI_DMA_CMD_OFFSET */
++	*(fDsiRegs + (0x04c / 4)) = 8u;                      /* DSI_DMA_CMD_LENGTH */
 +	__asm__ volatile("dsb sy" ::: "memory");
-+	fDsiRegs[0x090 / 4] = 1u;                      /* DSI_CMD_MODE_DMA_SW_TRIGGER */
++	*(fDsiRegs + (0x090 / 4)) = 1u;                      /* DSI_CMD_MODE_DMA_SW_TRIGGER */
 +
 +	bool done = false;
 +	for (unsigned i = 0; i < 1000; i++) {
-+		if (fDsiRegs[0x110 / 4] & (1u << 24)) {
-+			fDsiRegs[0x110 / 4] = fDsiRegs[0x110 / 4] | (1u << 24);
++		if (*(fDsiRegs + (0x110 / 4)) & (1u << 24)) {
++			*(fDsiRegs + (0x110 / 4)) = *(fDsiRegs + (0x110 / 4)) | (1u << 24);
 +			done = true;
 +			break;
 +		}
 +		IODelay(10);
 +	}
-+	IOLog("SWEET FB: DCS 0x51 hw=0x%03x done=%d int=0x%x\n", hw, done ? 1 : 0, fDsiRegs[0x110 / 4]);
++	IOLog("SWEET FB: DCS 0x51 hw=0x%03x done=%d int=0x%x\n", hw, done ? 1 : 0, *(fDsiRegs + (0x110 / 4)));
 +}
 +
  OSDefineMetaClassAndStructors(AppleCLCD, IOMobileFramebuffer);
